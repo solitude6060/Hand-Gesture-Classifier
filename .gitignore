@@ -1,0 +1,6 @@
+CSL/training/*.jpg
+CSL/test/*.jpg
+feature/*
+.pyc
+.csv
+.npy

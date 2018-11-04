@@ -6,9 +6,11 @@ from os import listdir
 from os.path import isfile, isdir, join
 from sklearn import svm, metrics
 import numpy as np
-
+from sklearn.model_selection import cross_val_score
 train_path = "CSL/training/"
 test_path = "CSL/test"
+from sklearn.model_selection import cross_validate
+from sklearn.metrics import classification_report
 
 
 def readfile(filepath):
@@ -76,13 +78,14 @@ print("Feature : ", x_train.shape, "Label : ",  y_train.shape)
 #np.savetxt('y_train_hu.csv', y_train, fmt="%s")
 #np.save('x_train_hu', x_train, fmt='%.18e')
 #np.save('y_train_hu', y_train, fmt="%s")
-np.save('x_train_hog.', x_train_hog)
+np.save('x_train_hog', x_train_hog)
 
 y_test = np.array(getLabel(test_path))
 imageTestList = readfile(test_path)
 x_test = np.array(getFeature_moments(imageTestList))
 x_test_hog = np.array(getFeature(imageTestList))
-
+print("HOG : ", len(x_test_hog[0]))
+print("HU : ", len(x_test[0]))
 print("Test Feature : ", x_test.shape, "Label : ",  y_test.shape)
 #np.savetxt('x_test_hu.csv', x_test, fmt='%.8e')
 #np.savetxt('y_test_hu.csv', y_test, fmt='%s')
@@ -90,14 +93,41 @@ print("Test Feature : ", x_test.shape, "Label : ",  y_test.shape)
 #np.save('y_test_hu', y_test, fmt='%s')
 np.save('x_test_hog', x_test_hog)
 
+target_names = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']
 print(x_test.shape, y_test.shape, x_train.shape, y_train.shape)
 
-classifier = svm.SVC(gamma=0.001)#, kernel="linear")
+print("---------------kernel=linear----------------")
+
+classifier = svm.SVC(gamma=0.001, kernel="linear")
 classifier.fit(x_train_hog, y_train)
 y_predict = classifier.predict(x_test_hog)
 print("Classification report for classifier %s:\n%s\n" % (classifier, metrics.classification_report(y_test, y_predict)))
-print("Classification report for AUC %s:\n" % (metrics.auc(y_test, y_predict)))
+#print("Classification report for AUC :\n" % (metrics.auc(y_test, y_predict)))
+
+scores = cross_validate(classifier, x_train_hog, y_train, cv=5, scoring='accuracy')
+
+print("cross_validation scores")
+print(scores)
 
 
+result = classifier.predict(x_test_hog)
+print(classification_report(y_test, result, target_names=target_names))
+
+print("---------------kernel=rbf(default)----------------")
+
+classifier_rbf = svm.SVC(gamma=0.001)
+classifier_rbf.fit(x_train_hog, y_train)
+y_predict = classifier_rbf.predict(x_test_hog)
+print("Classification report for classifier %s:\n%s\n" % (classifier_rbf, metrics.classification_report(y_test, y_predict)))
+#print("Classification report for AUC :\n" % (metrics.auc(y_test, y_predict)))
+
+scores = cross_validate(classifier_rbf, x_train_hog, y_train, cv=5, scoring='accuracy')
+
+print("cross_validation scores")
+print(scores)
+
+
+result = classifier_rbf.predict(x_test_hog)
+print(classification_report(y_test, result, target_names=target_names))
 
 

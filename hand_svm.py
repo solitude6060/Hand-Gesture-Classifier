@@ -1,133 +1,141 @@
 from skimage import exposure
-#exposure可用來調整影像中像素的強度
 from skimage import feature
-import cv2
-from os import listdir
-from os.path import isfile, isdir, join
 from sklearn import svm, metrics
-import numpy as np
-from sklearn.model_selection import cross_val_score
-train_path = "CSL/training/"
-test_path = "CSL/test"
-from sklearn.model_selection import cross_validate
+from sklearn.model_selection import cross_val_score, cross_validate
 from sklearn.metrics import classification_report
 
+import os
+from os import listdir
+from os.path import isfile, isdir, join
 
-def readfile(filepath):
-   imageList=[]
-   features=[]
-   # 取得所有檔案與子目錄名稱
-   files = listdir(filepath)
-   # 以迴圈處理
-   for f in files:
-       # 產生檔案的絕對路徑
-       fullpath = join(filepath, f)
-       # 判斷 fullpath 是檔案還是目錄
-       #print(fullpath)
-       image = cv2.imread(fullpath)
-       gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-       imageList.append(gray)
-       (H, hogImage) = feature.hog(gray, orientations=9, pixels_per_cell=(64, 64),cells_per_block=(2,2), transform_sqrt=True, visualise=True)
-       #print(len(H))
-       features.append(H)
-#        cv2.imshow("123",gray)
-#        cv2.waitKey(0)
-   return imageList
+import cv2#opencv
 
-def getFeature(imageList):
-   features=[]
-   for i in imageList:
-        (H, hogImage) = feature.hog(i, orientations=9, pixels_per_cell=(32,32),cells_per_block=(2, 2), transform_sqrt=True, visualise=True)
-        #print(H)
-        features.append(H)
-#         #調整影像強度範為介於0~255之間（rescale_intensity可將影像的像素強度進行壓縮或放大）
-#         hogImage = exposure.rescale_intensity(hogImage, out_range=(0, 255))
-#         #數值類型更改為Unsigned Integer 8 bits
-#         hogImage = hogImage.astype("uint8")
-#         #顯示HOG視覺圖
-#         cv2.imshow("HOG Image", hogImage)
-#         imageList = readfile("training/")
-   return features
+train_path = "./CSL/training/"
+test_path = "./CSL/test/"
 
-def getFeature_moments(imageList):
-   feature=[]
-   for i in imageList:
-       feature.append(cv2.HuMoments(cv2.moments(i)).flatten())
-   return feature
+label_names = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']
+scoring = ['precision_macro', 'recall_macro', 'accuracy']
 
-def getLabel(path):
-    LabelList = []
+
+def readimage(path):
+    image_list = []
+    y_list = [] #label list
 
     files = listdir(path)
-    for f in files:
-        LabelList.append(f[0])
 
-    return LabelList
+    for file in files:
+        fname, ftype = os.path.splitext(file)
+        #avoid to read temp file, ex:.DS_store
+        if ftype != ".jpg":
+            continue
+
+        fullpath = path+file
+        #print(fullpath)
+        image = cv2.imread(fullpath)
+        grayimg = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        image_list.append(grayimg)
+        y_list.append(file[0])#first vocab of file
+
+    return image_list, y_list
+
+def getHogFeature(image_list):
+    feature_list = []
+    for image in image_list:
+        img_feature = feature.hog(image, orientations=9, pixels_per_cell=(64, 64),cells_per_block=(1,1), transform_sqrt=True,feature_vector=True)
+        feature_list.append(img_feature)
+
+    
+    return feature_list
+
+def runSVM_RBF(train_feature_list, train_target_list, test_feature_list, test_target_list, label_names, scoring):
+    accuracy = 0
+    recall = 0
+    print("--------------RBF-----------------")
+    clf = svm.SVC(kernel='rbf')
+    clf.fit(train_feature_list, train_target_list)
+    scores = cross_validate(clf, train_feature_list, train_target_list, scoring=scoring, cv=5)
+    print(sorted(scores.keys()))
+    print("cross_validation scores")
+    #print(scores)
+    for key, value in scores.items():
+        print(key, value)
+        if key == "test_accuracy":
+            for i in  value:
+                accuracy += i
+        if key == "test_recall_macro":
+            for i in  value:
+                recall += i
+    print("Avg accuracy : ", accuracy/5)
+    print("Avg recall : ", recall/5)
+    result = clf.predict(test_feature_list)
+    print(classification_report(test_target_list, result, target_names=label_names))
+    print("--------------END-----------------")
+    
+    return
+
+def runSVM_linear(train_feature_list, train_target_list, test_feature_list, test_target_list, label_names, scoring):
+    accuracy = 0
+    recall = 0
+    print("--------------svm with linear-----------------")
+    clf = svm.SVC(kernel='linear')
+    clf.fit(train_feature_list, train_target_list)
+    scores = cross_validate(clf, train_feature_list, train_target_list, scoring=scoring, cv=5)
+    print(sorted(scores.keys()))
+    print("cross_validation scores")
+    #print(scores)
+    for key, value in scores.items():
+        print(key, value)
+        if key == "test_accuracy":
+            for i in  value:
+                accuracy += i
+        if key == "test_recall_macro":
+            for i in  value:
+                recall += i
+    print("Avg accuracy : ", accuracy/5)
+    print("Avg recall : ", recall/5)
+
+    result = clf.predict(test_feature_list)
+    print(classification_report(test_target_list, result, target_names=label_names))
+    print("--------------END-----------------")
+    return
+
+def runLinearSVC(train_feature_list, train_target_list, test_feature_list, test_target_list, label_names, scoring):
+    accuracy = 0
+    recall = 0
+    print("--------------linearSVC-----------------")
+    clf = svm.LinearSVC()
+    clf.fit(train_feature_list, train_target_list)
+    scores = cross_validate(clf, train_feature_list, train_target_list, scoring=scoring, cv=5)
+    print(sorted(scores.keys()))
+    print("cross_validation scores")
+    #print(scores)
+    for key, value in scores.items():
+        print(key, value)
+        if key == "test_accuracy":
+            for i in  value:
+                accuracy += i
+        if key == "test_recall_macro":
+            for i in  value:
+                recall += i
+    print("Avg accuracy : ", accuracy/5)
+    print("Avg recall : ", recall/5)
+
+    result = clf.predict(test_feature_list)
+    print(classification_report(test_target_list, result, target_names=label_names))
+    print("--------------END-----------------")
+    return
 
 
+train_image, y_train = readimage(train_path)
+test_image, y_test = readimage(test_path)
 
-#imageList = readfile(path)
-#feature = getFeature_moments(imageList)
-y_train = np.array(getLabel(train_path))
-imageTrainList = readfile(train_path)
-x_train = np.array(getFeature_moments(imageTrainList))
-x_train_hog = np.array(getFeature(imageTrainList))
+x_train = getHogFeature(train_image)
+x_test = getHogFeature(test_image)
 
-print("Feature : ", x_train.shape, "Label : ",  y_train.shape)
-#np.savetxt('x_train_hu.csv', x_train, fmt='%.8e')
-#np.savetxt('y_train_hu.csv', y_train, fmt="%s")
-#np.save('x_train_hu', x_train, fmt='%.18e')
-#np.save('y_train_hu', y_train, fmt="%s")
-np.save('x_train_hog', x_train_hog)
-
-y_test = np.array(getLabel(test_path))
-imageTestList = readfile(test_path)
-x_test = np.array(getFeature_moments(imageTestList))
-x_test_hog = np.array(getFeature(imageTestList))
-print("HOG : ", len(x_test_hog[0]))
-print("HU : ", len(x_test[0]))
-print("Test Feature : ", x_test.shape, "Label : ",  y_test.shape)
-#np.savetxt('x_test_hu.csv', x_test, fmt='%.8e')
-#np.savetxt('y_test_hu.csv', y_test, fmt='%s')
-#np.save('x_test_hu', x_test, fmt='%.18e')
-#np.save('y_test_hu', y_test, fmt='%s')
-np.save('x_test_hog', x_test_hog)
-
-target_names = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']
-print(x_test.shape, y_test.shape, x_train.shape, y_train.shape)
-
-print("---------------kernel=linear----------------")
-
-classifier = svm.SVC(gamma=0.001, kernel="linear")
-classifier.fit(x_train_hog, y_train)
-y_predict = classifier.predict(x_test_hog)
-print("Classification report for classifier %s:\n%s\n" % (classifier, metrics.classification_report(y_test, y_predict)))
-#print("Classification report for AUC :\n" % (metrics.auc(y_test, y_predict)))
-
-scores = cross_validate(classifier, x_train_hog, y_train, cv=5, scoring='accuracy')
-
-print("cross_validation scores")
-print(scores)
+print(len(x_train[0]))
 
 
-result = classifier.predict(x_test_hog)
-print(classification_report(y_test, result, target_names=target_names))
-
-print("---------------kernel=rbf(default)----------------")
-
-classifier_rbf = svm.SVC(gamma=0.001)
-classifier_rbf.fit(x_train_hog, y_train)
-y_predict = classifier_rbf.predict(x_test_hog)
-print("Classification report for classifier %s:\n%s\n" % (classifier_rbf, metrics.classification_report(y_test, y_predict)))
-#print("Classification report for AUC :\n" % (metrics.auc(y_test, y_predict)))
-
-scores = cross_validate(classifier_rbf, x_train_hog, y_train, cv=5, scoring='accuracy')
-
-print("cross_validation scores")
-print(scores)
-
-
-result = classifier_rbf.predict(x_test_hog)
-print(classification_report(y_test, result, target_names=target_names))
-
-
+runSVM_RBF(x_train, y_train, x_test, y_test, label_names, scoring)
+runSVM_linear(x_train, y_train, x_test, y_test, label_names, scoring)
+runLinearSVC(x_train, y_train, x_test, y_test, label_names, scoring)

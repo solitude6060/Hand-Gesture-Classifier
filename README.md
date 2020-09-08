@@ -1,4 +1,4 @@
-# Hand gesture
+# Hand Gesture Classifier
 
-## Homework 2 in IC&ML course, NCKU
-Hand gesture classify with SVM
+## IC&ML course, NCKU CSIE 2018
+A hand gesture classifier using SVM model with sklearn library
